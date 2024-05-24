@@ -6,11 +6,7 @@ use polars::prelude::*;
 use std::fs::File;
 use std::error::Error;
 use std::path::Path;
-use eframe::{Frame, Storage};
-use eframe::egui::{Context, Event, RawInput, Vec2, Visuals};
-use egui::Ui;
-use egui_plot::{Legend, Line, MarkerShape, PlotPoints, PlotUi, Points};
-use rand::Rng;
+use eframe::{Frame};
 use crate::chart::Chart;
 use crate::scatter::Scatter;
 
@@ -22,7 +18,7 @@ fn main() -> eframe::Result<()> {
 
     let options = eframe::NativeOptions {
       viewport: egui::ViewportBuilder {
-          maximized: Some(true),
+          // maximized: Some(true),
           ..Default::default()
       },
       ..Default::default()
@@ -98,17 +94,15 @@ impl Default for GeneralApp {
 }
 
 impl eframe::App for GeneralApp {
-    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             // Indicador de si el gráfico tiene el enfoque
             let mut plot_focus_states = vec![false; self.charts.len()];
 
-
             egui::ScrollArea::vertical().enable_scrolling(!self.is_any_plot_focused).show(ui, |ui| {
                 self.is_any_plot_focused = false;
-                for (index, ch) in self.charts.iter().enumerate() {
+                for (index, ch) in self.charts.iter_mut().enumerate() { // Usamos iter_mut para referencias mutables
                     ui.vertical_centered(|ui| {
-                        let plot_name = ch.name();
                         let (scroll, pointer_down, modifiers) = ui.input(|i| {
                             let scroll = i.events.iter().find_map(|e| match e {
                                 egui::Event::MouseWheel {
@@ -121,33 +115,14 @@ impl eframe::App for GeneralApp {
                             (scroll, i.pointer.primary_down(), i.modifiers)
                         });
 
-                        egui_plot::Plot::new(plot_name)
-                            .allow_zoom(false)
-                            .allow_drag(false)
-                            .allow_scroll(false)
-                            .legend(egui_plot::Legend::default())
-                            .show(ui, |plot_ui| {
-                                // Si el gráfico está siendo interactuado, establecemos el enfoque
-                                if plot_ui.response().hovered() || plot_ui.response().clicked() {
-                                    plot_focus_states[index] = true;
-                                    self.is_any_plot_focused = true;
-                                } else {
-                                    plot_focus_states[index] = false;
-                                }
-
-
-                                // Solo permitimos el movimiento si este gráfico tiene el enfoque
-                                if plot_focus_states[index] {
-                                    ch.as_ref().plot_movement(scroll, pointer_down, modifiers, plot_ui, plot_focus_states[index]);
-                                    ch.as_ref().draw(plot_ui);
-                                } else {
-                                    ch.as_ref().draw(plot_ui);
-                                }
-                            });
+                        ch.plot(ui, scroll, pointer_down, modifiers);
+                        plot_focus_states[index] = ch.is_focus();
+                        if ch.is_focus() {
+                            self.is_any_plot_focused = true;
+                        }
                     });
                 }
             });
-
         });
     }
 }

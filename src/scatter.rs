@@ -11,6 +11,9 @@ pub struct Scatter {
     pub shift_to_horizontal: bool,
     pub zoom_speed: f32,
     pub scroll_speed: f32,
+    pub height: f32,
+    pub width: f32,
+    pub is_focus: bool
 }
 
 impl Default for Scatter {
@@ -24,15 +27,14 @@ impl Default for Scatter {
             shift_to_horizontal: false,
             zoom_speed: 1.0,
             scroll_speed: 1.0,
+            height: 800.0,
+            width: 600.0,
+            is_focus: false
         }
     }
 }
 
-impl Chart for  Scatter {
-    fn name(&self) -> &str {
-        self.name.as_str()
-    }
-
+impl Scatter {
     fn draw(&self, plot_ui: &mut PlotUi){
         plot_ui.points(
             Points::new(self.points.clone())
@@ -40,6 +42,12 @@ impl Chart for  Scatter {
                 .radius(5.0)
                 .shape(MarkerShape::Diamond)
         )
+    }
+}
+
+impl Chart for  Scatter {
+    fn is_focus(&self) -> bool {
+        self.is_focus
     }
 
     fn plot_movement(&self, scroll: Option<Vec2>, pointer_down: bool, modifiers: egui::Modifiers, plot_ui: &mut PlotUi, is_plot_focused: bool) {
@@ -83,6 +91,34 @@ impl Chart for  Scatter {
             }
             plot_ui.translate_bounds(pointer_translate);
         };
+    }
+
+    fn plot(
+        &mut self,
+        ui: &mut egui::Ui,
+        scroll: Option<Vec2>,
+        pointer_down: bool,
+        modifiers: egui::Modifiers,
+    ) {
+        self.is_focus = false;
+        egui::Frame::default()
+            .show(ui, |ui| {
+                ui.set_min_height(800.0); // Ajusta el tamaño mínimo según tus necesidades
+                egui_plot::Plot::new(self.name.to_string())
+                    .allow_zoom(false)
+                    .allow_drag(false)
+                    .allow_scroll(false)
+                    .legend(egui_plot::Legend::default())
+                    .show(ui, |plot_ui| {
+                        if plot_ui.response().hovered() || plot_ui.response().clicked() {
+                            self.is_focus = true;
+                            self.plot_movement(scroll, pointer_down, modifiers, plot_ui, self.is_focus);
+                            self.draw(plot_ui);
+                        } else {
+                            self.draw(plot_ui);
+                        }
+                    });
+            });
     }
 
 }
