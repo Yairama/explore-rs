@@ -1,68 +1,153 @@
+mod scatter;
+mod chart;
+
+use std::default::Default;
 use polars::prelude::*;
 use std::fs::File;
 use std::error::Error;
 use std::path::Path;
-use eframe::egui;
+use eframe::{Frame, Storage};
+use eframe::egui::{Context, Event, RawInput, Vec2, Visuals};
+use egui::Ui;
+use egui_plot::{Legend, Line, MarkerShape, PlotPoints, PlotUi, Points};
+use rand::Rng;
+use crate::chart::Chart;
+use crate::scatter::Scatter;
 
 fn main() -> eframe::Result<()> {
 
-    std::env::set_var("POLARS_FMT_MAX_COLS", "-1");
+    let df = load_dataframe().unwrap();
+    let data_points = get_series(&df, "Pclass", "Age").unwrap();
 
-    let file_path = Path::new("data/train.csv");
-
-    let file = File::open(file_path).unwrap();
-
-    let df = CsvReader::new(file)
-        .infer_schema(Some(10000))
-        .has_header(true)
-        .finish().unwrap();
-
-    println!("{:?}", df);
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([320.0, 240.0]),
+      viewport: egui::ViewportBuilder {
+          maximized: Some(true),
+          ..Default::default()
+      },
+      ..Default::default()
+    };
+    let scatter = Scatter {
+        name: "Scatter".to_string(),
+        points: data_points.clone(),
+        ..Default::default()
+    };
+    let scatter2 = Scatter {
+        name: "Scatter2".to_string(),
+        points: data_points,
         ..Default::default()
     };
     eframe::run_native(
         "My egui App",
         options,
-        Box::new(|cc| {
-            // This gives us image support:
-            Box::<MyApp>::default()
+        Box::new(|_cc| {
+            Box::new(GeneralApp {
+                charts: vec![Box::new(scatter), Box::new(scatter2)],
+                ..Default::default()
+            })
         }),
-    )
+    )?;
+
+    Ok(())
 
 }
 
-struct MyApp {
-  name: String,
-  age: u32,
+fn get_series(df: &DataFrame, a_column: &str, b_column: &str) -> Result<Vec<[f64; 2]>, Box<dyn Error>>  {
+    let df = df.drop_nulls(Some(&[a_column, b_column]))?;
+    let a_casted = df.column(a_column)?.cast(&DataType::Float64)?;
+    let b_casted = df.column(b_column)?.cast(&DataType::Float64)?;
+    let a_series = a_casted.f64()?;
+    let b_series = b_casted.f64()?;
+
+    let result: Vec<[f64; 2]> = a_series
+        .into_iter()
+        .zip(b_series.into_iter())
+        .map(|(a, b)| [a.unwrap(), b.unwrap()])
+        .collect();
+    Ok(result)
 }
 
-impl Default for MyApp {
+fn load_dataframe() -> Result<DataFrame, Box<dyn Error>> {
+
+  std::env::set_var("POLARS_FMT_MAX_COLS", "-1");
+  let file_path = Path::new("data/train.csv");
+
+  let file = File::open(file_path).unwrap();
+
+  let df = CsvReader::new(file)
+      .infer_schema(Some(10000))
+      .has_header(true)
+      .finish().unwrap();
+
+  println!("{:?}", df);
+  Ok(df)
+}
+
+struct GeneralApp {
+    charts: Vec<Box<dyn Chart>>,
+    is_any_plot_focused: bool
+}
+
+impl Default for GeneralApp {
     fn default() -> Self {
         Self {
-            name: "Arthur".to_owned(),
-            age: 42,
+            charts: Vec::new(),
+            is_any_plot_focused: false
         }
     }
 }
 
-impl eframe::App for MyApp {
-  fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-      egui::CentralPanel::default().show(ctx, |ui| {
-          ui.heading("My egui Application");
-          ui.horizontal(|ui| {
-              let name_label = ui.label("Your name: ");
-              ui.text_edit_singleline(&mut self.name)
-                  .labelled_by(name_label.id);
-          });
-          ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
-          if ui.button("Increment").clicked() {
-              self.age += 1;
-          }
-          ui.label(format!("Hello '{}', age {}", self.name, self.age));
+impl eframe::App for GeneralApp {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            // Indicador de si el gráfico tiene el enfoque
+            let mut plot_focus_states = vec![false; self.charts.len()];
 
-      });
-  }
+
+            egui::ScrollArea::vertical().enable_scrolling(!self.is_any_plot_focused).show(ui, |ui| {
+                self.is_any_plot_focused = false;
+                for (index, ch) in self.charts.iter().enumerate() {
+                    ui.vertical_centered(|ui| {
+                        let plot_name = ch.name();
+                        let (scroll, pointer_down, modifiers) = ui.input(|i| {
+                            let scroll = i.events.iter().find_map(|e| match e {
+                                egui::Event::MouseWheel {
+                                    unit: _,
+                                    delta,
+                                    modifiers: _,
+                                } => Some(*delta),
+                                _ => None,
+                            });
+                            (scroll, i.pointer.primary_down(), i.modifiers)
+                        });
+
+                        egui_plot::Plot::new(plot_name)
+                            .allow_zoom(false)
+                            .allow_drag(false)
+                            .allow_scroll(false)
+                            .legend(egui_plot::Legend::default())
+                            .show(ui, |plot_ui| {
+                                // Si el gráfico está siendo interactuado, establecemos el enfoque
+                                if plot_ui.response().hovered() || plot_ui.response().clicked() {
+                                    plot_focus_states[index] = true;
+                                    self.is_any_plot_focused = true;
+                                } else {
+                                    plot_focus_states[index] = false;
+                                }
+
+
+                                // Solo permitimos el movimiento si este gráfico tiene el enfoque
+                                if plot_focus_states[index] {
+                                    ch.as_ref().plot_movement(scroll, pointer_down, modifiers, plot_ui, plot_focus_states[index]);
+                                    ch.as_ref().draw(plot_ui);
+                                } else {
+                                    ch.as_ref().draw(plot_ui);
+                                }
+                            });
+                    });
+                }
+            });
+
+        });
+    }
 }
