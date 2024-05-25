@@ -1,22 +1,19 @@
-use std::rc::Rc;
-use eframe::emath::Vec2;
+use std::any::Any;
+use egui::Color32;
 use egui_plot::PlotUi;
-use crate::color_palette::ColorPalette;
 
 pub trait Chart {
-    fn is_focus(&self) -> bool;
 
-    fn get_color_pallet(&self) -> Option<&ColorPalette>;
+    fn draw(&self, plot_ui: &mut PlotUi, chart_type: Box<&dyn ChartType>);
 
-    fn set_color_pallet(&mut self, color_palette:  Rc<ColorPalette>);
+    fn get_type(&self) -> Box<&dyn ChartType>;
 
-    fn plot_movement(&self, scroll: Option<Vec2>, pointer_down: bool, modifiers: egui::Modifiers, plot_ui: &mut PlotUi, is_plot_focused: bool);
+    fn get_color(&self) -> Option<Color32>;
 
-    fn plot(
-        &mut self,
-        ui: &mut egui::Ui,
-        scroll: Option<Vec2>,
-        pointer_down: bool,
-        modifiers: egui::Modifiers,
-    );
+    fn set_color(&mut self, color: Color32);
+}
+
+pub trait ChartType: Any {
+    fn as_any(&self) -> &dyn Any;
+    fn chart_type_name(&self) -> &str;
 }
