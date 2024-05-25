@@ -1,53 +1,82 @@
+use std::rc::Rc;
 use eframe::emath::Vec2;
 use egui_plot::{MarkerShape, PlotUi, Points};
 use crate::chart::Chart;
+use crate::color_palette::ColorPalette;
 
 pub struct Scatter {
     pub name: String,
-    pub points: Vec<[f64;2]>,
+    pub series: Vec<Vec<[f64; 2]>>,
     pub lock_x: bool,
     pub lock_y: bool,
     pub ctrl_to_zoom: bool,
     pub shift_to_horizontal: bool,
     pub zoom_speed: f32,
     pub scroll_speed: f32,
-    pub height: f32,
-    pub width: f32,
-    pub is_focus: bool
+    pub min_height: f32,
+    pub min_width: f32,
+    pub max_height: f32,
+    pub max_width: f32,
+    pub is_focus: bool,
+    pub marker: MarkerShape,
+    pub radius: f32,
+    pub filled: bool,
+    pub colors: Option<Rc<ColorPalette>>,
 }
-
 impl Default for Scatter {
     fn default() -> Self {
         Self {
             name: "Scatter".to_string(),
-            points: vec![],
+            series: vec![],
             lock_x: false,
             lock_y: false,
             ctrl_to_zoom: false,
             shift_to_horizontal: false,
             zoom_speed: 1.0,
             scroll_speed: 1.0,
-            height: 800.0,
-            width: 600.0,
-            is_focus: false
+            min_height: 800.0,
+            min_width: 800.0,
+            max_height: 800.0,
+            max_width: 800.0,
+            is_focus: false,
+            marker: MarkerShape::Diamond,
+            radius: 5.0,
+            filled: true,
+            colors: None
         }
     }
 }
 
 impl Scatter {
-    fn draw(&self, plot_ui: &mut PlotUi){
-        plot_ui.points(
-            Points::new(self.points.clone())
-                .filled(true)
-                .radius(5.0)
-                .shape(MarkerShape::Diamond)
-        )
+
+    fn draw(&self, plot_ui: &mut PlotUi) {
+        if let Some(color_palette) = &self.colors {
+            for (i, points) in self.series.iter().enumerate() {
+                let colors = color_palette.colors.as_slice();
+                let color = colors[i % colors.len()]; // Asignar un color diferente a cada serie
+                plot_ui.points(
+                    Points::new(points.clone())
+                        .filled(self.filled)
+                        .radius(self.radius)
+                        .color(color)
+                        .shape(self.marker)
+                );
+            }
+        }
     }
 }
 
-impl Chart for  Scatter {
+impl Chart for Scatter {
     fn is_focus(&self) -> bool {
         self.is_focus
+    }
+
+    fn get_color_pallet(&self) -> Option<&ColorPalette> {
+        self.colors.as_deref()
+    }
+
+    fn set_color_pallet(&mut self, color_palette: Rc<ColorPalette>) {
+        self.colors = Some(color_palette);
     }
 
     fn plot_movement(&self, scroll: Option<Vec2>, pointer_down: bool, modifiers: egui::Modifiers, plot_ui: &mut PlotUi, is_plot_focused: bool) {
@@ -103,7 +132,8 @@ impl Chart for  Scatter {
         self.is_focus = false;
         egui::Frame::default()
             .show(ui, |ui| {
-                ui.set_min_height(800.0); // Ajusta el tamaño mínimo según tus necesidades
+                ui.set_min_size(Vec2::new(self.min_width, self.min_height));
+                ui.set_max_size(Vec2::new(self.max_width, self.max_height));
                 egui_plot::Plot::new(self.name.to_string())
                     .allow_zoom(false)
                     .allow_drag(false)
@@ -120,7 +150,5 @@ impl Chart for  Scatter {
                     });
             });
     }
-
 }
-
 
