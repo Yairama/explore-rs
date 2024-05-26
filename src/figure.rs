@@ -2,13 +2,13 @@ use std::default::Default;
 use std::rc::Rc;
 use eframe::emath::Vec2;
 use egui_plot::PlotUi;
-use crate::chart::Chart;
+use crate::plot::Plot;
 use crate::color_palette::ColorPalette;
 
 pub struct Figure {
     pub title: String,
-    pub charts: Vec<Box<dyn Chart>>,
-    pub color_palette: Option<Rc<ColorPalette>>,
+    pub charts: Vec<Box<dyn Plot>>,
+    pub color_palette: ColorPalette,
     pub lock_x: bool,
     pub lock_y: bool,
     pub ctrl_to_zoom: bool,
@@ -27,7 +27,7 @@ impl Default for Figure {
         Self {
             title: "Figure".to_string(),
             charts: vec![],
-            color_palette: None,
+            color_palette: ColorPalette::deep(),
             lock_x: false,
             lock_y: false,
             ctrl_to_zoom: false,
@@ -43,36 +43,35 @@ impl Default for Figure {
     }
 }
 
+#[allow(dead_code)]
 impl Figure {
-    pub fn new(title: &str, mut charts: Vec<Box<dyn Chart>>) -> Self {
+    pub fn new(title: &str, charts: Vec<Box<dyn Plot>>) -> Self {
         let color_palette = ColorPalette::deep();
-        for (i, chart) in charts.iter_mut().enumerate() {
-            let colors = color_palette.colors.as_slice();
-            let color = colors[i % colors.len()];
-            if chart.get_color().is_none() {
-                chart.set_color(color);
-            }
-        }
-
         Self {
             title: title.to_string(),
             charts,
-            color_palette: Some(Rc::new(color_palette)),
+            color_palette,
             ..Default::default()
         }
     }
 
     pub fn with_color_palette(mut self, color_palette: ColorPalette) -> Self {
 
-
         for (i, chart) in self.charts.iter_mut().enumerate() {
             let colors = color_palette.colors.as_slice();
             let color = colors[i % colors.len()];
-            if Some(chart.get_color()).is_none() {
-                chart.set_color(color);
-            }
+            chart.set_color(color);
         }
-        self.color_palette = Some(Rc::new(color_palette));
+        self.color_palette = color_palette;
+
+        self
+    }
+
+    fn size(mut self, min_height: f32, min_width: f32, max_height: f32, max_width: f32) -> Self {
+        self.min_height = min_height;
+        self.min_width = min_width;
+        self.max_height = max_height;
+        self.max_width = max_width;
 
         self
     }
@@ -81,12 +80,8 @@ impl Figure {
         self.is_focus
     }
 
-    fn get_color_pallet(&self) -> Option<&ColorPalette> {
-        self.color_palette.as_deref()
-    }
-
-    fn set_color_pallet(&mut self, color_palette: Rc<ColorPalette>) {
-        self.color_palette = Some(color_palette);
+    fn set_color_pallet(&mut self, color_palette: ColorPalette) {
+        self.color_palette = color_palette;
     }
 
     fn plot_movement(&self, scroll: Option<Vec2>, pointer_down: bool, modifiers: egui::Modifiers, plot_ui: &mut PlotUi, is_plot_focused: bool) {
@@ -139,7 +134,7 @@ impl Figure {
                 modifiers: egui::Modifiers,
     ) {
         self.is_focus = false;
-        let mut new_focus = false; // Variable temporal para almacenar el nuevo estado de focus
+        let mut new_focus = false;
 
         egui::Frame::default()
             .show(ui, |ui| {
@@ -154,20 +149,19 @@ impl Figure {
 
                         for ch in self.charts.iter_mut() {
                             if plot_ui.response().hovered() || plot_ui.response().clicked() {
-                                new_focus = true; // Actualizar el estado de focus temporalmente
-                                ch.draw(plot_ui, ch.get_type());
+                                new_focus = true;
+                                ch.draw(plot_ui);
                             } else {
-                                ch.draw(plot_ui, ch.get_type());
+                                ch.draw(plot_ui);
                             }
                         }
 
-                        // Solo llamar a plot_movement una vez fuera del bucle
                         if new_focus {
                             self.plot_movement(scroll, pointer_down, modifiers, plot_ui, new_focus);
                         }
                     });
             });
 
-        self.is_focus = new_focus; // Actualizar el estado de focus final después del bucle
+        self.is_focus = new_focus;
     }
 }

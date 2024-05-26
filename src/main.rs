@@ -1,5 +1,5 @@
 mod scatter;
-mod chart;
+mod plot;
 mod color_palette;
 mod figure;
 
@@ -9,7 +9,7 @@ use std::fs::File;
 use std::error::Error;
 use std::path::Path;
 use eframe::{Frame};
-use crate::chart::Chart;
+use crate::plot::Plot;
 use crate::figure::Figure;
 use crate::scatter::Scatter;
 
@@ -26,11 +26,9 @@ fn main() -> eframe::Result<()> {
       },
       ..Default::default()
     };
-    let scatter_1 = Scatter::new("Scatter 1", data_points.clone(), scatter::ScatterType::Scatter);
-    let scatter_2 = Scatter::new("Scatter 2", second_points.clone(), scatter::ScatterType::Scatter);
-
-
-    let charts: Vec<Box<dyn Chart>> = vec![Box::new(scatter_1), Box::new(scatter_2)];
+    let scatter_1 = Scatter::new("Scatter 1", data_points.clone());
+    let scatter_2 = Scatter::new("Scatter 2", second_points.clone());
+    let charts: Vec<Box<dyn Plot>> = vec![Box::new(scatter_1), Box::new(scatter_2)];
     let figure = Figure::new("Figure", charts);
 
     let app = GeneralApp::new(vec![figure]);

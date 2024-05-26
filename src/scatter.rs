@@ -1,123 +1,103 @@
-use std::any::Any;
 use egui::Color32;
 use egui_plot::{MarkerShape, PlotUi, Points};
-use crate::chart::{Chart, ChartType};
+use crate::plot::{Plot, PlotType};
 
-pub enum ScatterType{
-    Line,
-    Scatter,
-}
-
-impl ChartType for ScatterType {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn chart_type_name(&self) -> &str {
-        match self {
-            ScatterType::Line => "Line",
-            ScatterType::Scatter => "Scatter"
-        }
-    }
-}
 
 pub struct Scatter {
     name: String,
-    points: Vec<[f64; 2]>,
-    marker: MarkerShape,
-    radius: f32,
+    series: Vec<[f64; 2]>,
+    shape: MarkerShape,
+    color: Color32,
     filled: bool,
-    color: Option<Color32>,
-    chart_type: ScatterType
+    radius: f32,
+    highlight: bool,
+    stems: Option<f32>,
+    chart_type: PlotType
 }
 impl Default for Scatter {
     fn default() -> Self {
         Self {
             name: "Scatter".to_string(),
-            points: vec![],
-            marker: MarkerShape::Diamond,
+            series: vec![],
+            shape: MarkerShape::Diamond,
             radius: 5.0,
             filled: true,
-            color: None,
-            chart_type: ScatterType::Scatter
+            color: Color32::TRANSPARENT,
+            stems: None,
+            highlight: false,
+            chart_type: PlotType::ScatterPlot
         }
     }
 }
 
+#[allow(dead_code)]
 impl Scatter {
 
-    pub fn new(name: &str, points: Vec<[f64; 2]>, scatter_type: ScatterType) -> Self {
+    pub fn new(name: &str, series: Vec<[f64; 2]>) -> Self {
         Self {
             name: name.to_string(),
-            points,
-            chart_type: scatter_type,
+            series,
+            chart_type: PlotType::ScatterPlot,
             ..Default::default()
         }
     }
 
-    fn with_marker(mut self, marker: MarkerShape) -> Self {
-        self.marker = marker;
+    pub fn shape(mut self, shape: MarkerShape) -> Self {
+        self.shape = shape;
         self
     }
 
-    fn with_color(mut self, color: Color32) -> Self {
-        self.color = Some(color);
+    pub fn highlight(mut self, highlight: bool) -> Self {
+        self.highlight = highlight;
         self
     }
 
-    fn with_radius(mut self, radius: f32) -> Self {
-        self.radius = radius;
+    pub fn color(mut self, color: impl Into<Color32>) -> Self {
+        self.color = color.into();
         self
     }
 
-    fn filled(mut self, filled: bool) -> Self {
+    pub fn filled(mut self, filled: bool) -> Self {
         self.filled = filled;
         self
     }
 
+    pub fn stems(mut self, y_reference: impl Into<f32>) -> Self {
+        self.stems = Some(y_reference.into());
+        self
+    }
 
+    pub fn radius(mut self, radius: impl Into<f32>) -> Self {
+        self.radius = radius.into();
+        self
+    }
 
 }
 
-impl Scatter{
-    fn draw_scatter(&self, plot_ui: &mut PlotUi) {
+impl Plot for Scatter {
+    fn draw(&self, plot_ui: &mut PlotUi) {
+        let mut points = Points::new(self.series.clone())
+            .shape(self.shape)
+            .radius(self.radius)
+            .filled(self.filled)
+            .color(self.color)
+            .highlight(self.highlight);
 
-        if let Some(color) = self.color {
-            plot_ui.points(
-                Points::new(self.points.clone())
-                    .filled(self.filled)
-                    .radius(self.radius)
-                    .shape(self.marker)
-                    .color(color)
-
-            );
+        if let Some(stems) = self.stems {
+            points = points.stems(stems);
         }
-    }
-}
-
-impl Chart for Scatter {
-    fn draw(&self, plot_ui: &mut PlotUi, chart_type: Box<&dyn ChartType>) {
-
-        if let Some(scatter_type) = chart_type.as_any().downcast_ref::<ScatterType>() {
-
-            match scatter_type {
-                ScatterType::Scatter => {
-                    self.draw_scatter(plot_ui);
-                }
-                _ => {}
-            }
-        }
+        plot_ui.points(points);
     }
 
-    fn get_type(&self) -> Box<&dyn ChartType> {
-        Box::new(&self.chart_type)
+    fn get_type(&self) -> &PlotType {
+        &self.chart_type
     }
 
-    fn get_color(&self) -> Option<Color32> {
+    fn get_color(&self) -> Color32 {
         self.color
     }
 
     fn set_color(&mut self, color: Color32) {
-        self.color = Some(color);
+        self.color = color;
     }
 }
