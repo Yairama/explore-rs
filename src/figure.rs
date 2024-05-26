@@ -1,5 +1,4 @@
 use std::default::Default;
-use std::rc::Rc;
 use eframe::emath::Vec2;
 use egui_plot::PlotUi;
 use crate::plot::Plot;

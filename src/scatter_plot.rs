@@ -3,7 +3,7 @@ use egui_plot::{MarkerShape, PlotUi, Points};
 use crate::plot::{Plot, PlotType};
 
 
-pub struct Scatter {
+pub struct ScatterPlot {
     name: String,
     series: Vec<[f64; 2]>,
     shape: MarkerShape,
@@ -14,7 +14,7 @@ pub struct Scatter {
     stems: Option<f32>,
     chart_type: PlotType
 }
-impl Default for Scatter {
+impl Default for ScatterPlot {
     fn default() -> Self {
         Self {
             name: "Scatter".to_string(),
@@ -31,7 +31,7 @@ impl Default for Scatter {
 }
 
 #[allow(dead_code)]
-impl Scatter {
+impl ScatterPlot {
 
     pub fn new(name: &str, series: Vec<[f64; 2]>) -> Self {
         Self {
@@ -74,13 +74,14 @@ impl Scatter {
 
 }
 
-impl Plot for Scatter {
+impl Plot for ScatterPlot {
     fn draw(&self, plot_ui: &mut PlotUi) {
         let mut points = Points::new(self.series.clone())
             .shape(self.shape)
             .radius(self.radius)
             .filled(self.filled)
             .color(self.color)
+            .name(&self.name)
             .highlight(self.highlight);
 
         if let Some(stems) = self.stems {

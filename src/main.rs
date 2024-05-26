@@ -1,7 +1,8 @@
-mod scatter;
+mod scatter_plot;
 mod plot;
 mod color_palette;
 mod figure;
+mod line_plot;
 
 use std::default::Default;
 use polars::prelude::*;
@@ -11,7 +12,8 @@ use std::path::Path;
 use eframe::{Frame};
 use crate::plot::Plot;
 use crate::figure::Figure;
-use crate::scatter::Scatter;
+use crate::line_plot::LinePlot;
+use crate::scatter_plot::ScatterPlot;
 
 fn main() -> eframe::Result<()> {
 
@@ -26,9 +28,13 @@ fn main() -> eframe::Result<()> {
       },
       ..Default::default()
     };
-    let scatter_1 = Scatter::new("Scatter 1", data_points.clone());
-    let scatter_2 = Scatter::new("Scatter 2", second_points.clone());
-    let charts: Vec<Box<dyn Plot>> = vec![Box::new(scatter_1), Box::new(scatter_2)];
+    let scatter_1 = ScatterPlot::new("Scatter 1", data_points.clone());
+    let scatter_2 = ScatterPlot::new("Scatter 2", second_points.clone());
+    let line_1 = LinePlot::new("Line 1", data_points.clone()).style(egui_plot::LineStyle::Dashed{ length: 5.0});
+    let line_2 = LinePlot::new("Line 2", second_points.clone());
+    let charts: Vec<Box<dyn Plot>> = vec![Box::new(scatter_1),
+                                          Box::new(scatter_2),
+                                          Box::new(line_1), Box::new(line_2)];
     let figure = Figure::new("Figure", charts);
 
     let app = GeneralApp::new(vec![figure]);
