@@ -19,7 +19,7 @@ pub struct LinePlot {
 impl Default for LinePlot {
     fn default() -> Self {
         Self {
-            name: "Line".to_string(),
+            name: String::default(),
             series: vec![],
             color: Color32::TRANSPARENT,
             width: 1.5,
@@ -34,13 +34,17 @@ impl Default for LinePlot {
 
 #[allow(dead_code)]
 impl LinePlot{
-    pub fn new(name: &str, series: Vec<[f64; 2]>) -> Self {
+    pub fn new(series: Vec<[f64; 2]>) -> Self {
         Self {
-            name: name.to_string(),
             series,
             chart_type: PlotType::LinePlot,
             ..Default::default()
         }
+    }
+
+    pub fn name(mut self, name: &str) -> Self {
+        self.name = name.to_string();
+        self
     }
 
     pub fn width(mut self, width: f32) -> Self {

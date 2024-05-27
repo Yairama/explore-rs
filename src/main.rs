@@ -30,14 +30,17 @@ fn main() -> eframe::Result<()> {
     };
     let scatter_1 = ScatterPlot::new("Scatter 1", data_points.clone());
     let scatter_2 = ScatterPlot::new("Scatter 2", second_points.clone());
-    let line_1 = LinePlot::new("Line 1", data_points.clone()).style(egui_plot::LineStyle::Dashed{ length: 5.0});
-    let line_2 = LinePlot::new("Line 2", second_points.clone());
-    let charts: Vec<Box<dyn Plot>> = vec![Box::new(scatter_1),
-                                          Box::new(scatter_2),
-                                          Box::new(line_1), Box::new(line_2)];
-    let figure = Figure::new("Figure", charts);
+    let line_1 = LinePlot::new(data_points.clone())
+        .style(egui_plot::LineStyle::Dashed{ length: 5.0})
+        .name("Line 1");
+    let line_2 = LinePlot::new(second_points.clone())
+        .name("Line 2");
+    let scatters: Vec<Box<dyn Plot>> = vec![Box::new(scatter_1), Box::new(scatter_2)];
+    let lines: Vec<Box<dyn Plot>> = vec![Box::new(line_1), Box::new(line_2)];
+    let figure_1 = Figure::new("Scatters", scatters);
+    let figure_2 = Figure::new("Lines", lines);
 
-    let app = GeneralApp::new(vec![figure]);
+    let app = GeneralApp::new(vec![figure_1, figure_2]);
     eframe::run_native(
         "My egui App",
         options,
@@ -129,11 +132,13 @@ impl eframe::App for GeneralApp {
                 });
 
                 for (index, fig) in self.figures.iter_mut().enumerate() {
-                    fig.show(ui, scroll, pointer_down, modifiers);
-                    plot_focus_states[index] = fig.is_focus();
-                    if fig.is_focus() {
-                        self.is_any_plot_focused = true;
-                    }
+                    egui::Window::new(index.to_string()).open(&mut true).show(ctx, |ui| {
+                        fig.show(ui, scroll, pointer_down, modifiers);
+                        plot_focus_states[index] = fig.is_focus();
+                        if fig.is_focus() {
+                            self.is_any_plot_focused = true;
+                        }
+                    });
                 }
             });
         });

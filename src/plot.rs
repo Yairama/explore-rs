@@ -1,5 +1,5 @@
 use egui::Color32;
-use egui_plot::PlotUi;
+use egui_plot::{MarkerShape, PlotUi, Points};
 
 pub trait Plot {
 
@@ -16,3 +16,9 @@ pub enum  PlotType {
     ScatterPlot,
     LinePlot,
 }
+
+pub enum TestPlot {
+    ScatterPlot(egui_plot::Points),
+    LinePlot(egui_plot::Line),
+}
+

@@ -18,7 +18,11 @@ pub struct Figure {
     pub min_width: f32,
     pub max_height: f32,
     pub max_width: f32,
-    pub is_focus: bool
+    pub is_focus: bool,
+    pub show_x: bool,
+    pub show_y: bool,
+    pub show_axes: bool,
+    pub show_grid: bool
 }
 
 impl Default for Figure {
@@ -38,6 +42,10 @@ impl Default for Figure {
             max_height: 800.0,
             max_width: 800.0,
             is_focus: false,
+            show_x: true,
+            show_y: true,
+            show_axes:  true,
+            show_grid: true
         }
     }
 }
@@ -144,6 +152,10 @@ impl Figure {
                     .allow_drag(false)
                     .allow_scroll(false)
                     .legend(egui_plot::Legend::default())
+                    .show_x(self.show_x)
+                    .show_y(self.show_y)
+                    .show_axes(self.show_axes)
+                    .show_grid(self.show_grid)
                     .show(ui, |plot_ui| {
 
                         for ch in self.charts.iter_mut() {
